@@ -6,6 +6,11 @@ terraform {
     }
   }
   required_version = ">= 1.5.0"
+
+  backend "gcs" {
+    bucket = "microservices-demo-tfstate-577656732050"
+    prefix = "terraform/state"
+  }
 }
 
 provider "google" {
