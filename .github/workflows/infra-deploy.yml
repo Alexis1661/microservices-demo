@@ -56,7 +56,15 @@ jobs:
             -var="region=us-central1" \
             google_artifact_registry_repository.microservices \
             "projects/${{ secrets.GCP_PROJECT_ID }}/locations/us-central1/repositories/microservices-demo" \
-            || echo "Ya importado o no existe, continuando..."
+            || echo "Artifact Registry: ya importado o no existe, continuando..."
+
+          # Importa el cluster GKE si ya existe y no está en el state
+          terraform import \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -var="region=us-central1" \
+            google_container_cluster.primary \
+            "projects/${{ secrets.GCP_PROJECT_ID }}/locations/us-central1/clusters/microservices-cluster" \
+            || echo "GKE cluster: ya importado o no existe, continuando..."
         env:
           TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
           TF_VAR_region: "us-central1"
