@@ -40,6 +40,8 @@ resource "google_artifact_registry_repository" "microservices" {
 }
 
 # Cluster GKE Autopilot
+# lifecycle ignore_changes = all evita que Terraform intente reconciliar
+# atributos que GCP Autopilot configura automáticamente (redes, versiones, etc.)
 resource "google_container_cluster" "primary" {
   name     = var.cluster_name
   location = var.region
@@ -48,4 +50,8 @@ resource "google_container_cluster" "primary" {
   deletion_protection = false
 
   depends_on = [google_project_service.container]
+
+  lifecycle {
+    ignore_changes = all
+  }
 }
