@@ -38,10 +38,28 @@ jobs:
       - name: Terraform Init
         working-directory: ./terraform
         run: terraform init
+        env:
+          TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+          TF_VAR_region: "us-central1"
 
       - name: Terraform Format Check
         working-directory: ./terraform
         run: terraform fmt -check
+
+      - name: Import recursos existentes (idempotente)
+        working-directory: ./terraform
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          # Importa el Artifact Registry si ya existe y no está en el state
+          terraform import \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -var="region=us-central1" \
+            google_artifact_registry_repository.microservices \
+            "projects/${{ secrets.GCP_PROJECT_ID }}/locations/us-central1/repositories/microservices-demo" \
+            || echo "Ya importado o no existe, continuando..."
+        env:
+          TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+          TF_VAR_region: "us-central1"
 
       - name: Terraform Plan
         working-directory: ./terraform
