@@ -62,21 +62,21 @@ jobs:
           helm upgrade --install vote vote/chart \
             --namespace ${{ env.NAMESPACE }} \
             --set image=${{ env.IMAGE_BASE }}/vote:latest \
-            --wait --timeout 3m
+            --wait --timeout 8m
 
       - name: Desplegar worker
         run: |
           helm upgrade --install worker worker/chart \
             --namespace ${{ env.NAMESPACE }} \
             --set image=${{ env.IMAGE_BASE }}/worker:latest \
-            --wait --timeout 3m
+            --wait --timeout 8m
 
       - name: Desplegar result
         run: |
           helm upgrade --install result result/chart \
             --namespace ${{ env.NAMESPACE }} \
             --set image=${{ env.IMAGE_BASE }}/result:latest \
-            --wait --timeout 3m
+            --wait --timeout 8m
 
       - name: Verificar despliegue
         run: |
