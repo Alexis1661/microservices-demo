@@ -1,0 +1,66 @@
+name: CI - Result Service
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'result/**'
+  pull_request:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'result/**'
+
+env:
+  IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/microservices-demo/result
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-push:
+    name: Build, Test & Push Result
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: result/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: ./result
+        run: npm install
+
+      - name: Correr tests
+        working-directory: ./result
+        run: npm test --if-present
+
+      - name: Autenticar en GCP (Workload Identity)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Configurar Docker para Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build imagen Docker
+        run: |
+          docker build -t ${{ env.IMAGE }}:${{ github.sha }} \
+                       -t ${{ env.IMAGE }}:latest \
+                       ./result
+
+      - name: Push imagen a Artifact Registry
+        run: |
+          docker push ${{ env.IMAGE }}:${{ github.sha }}
+          docker push ${{ env.IMAGE }}:latest

@@ -1,0 +1,64 @@
+name: CI - Worker Service
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'worker/**'
+  pull_request:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'worker/**'
+
+env:
+  IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/microservices-demo/worker
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-push:
+    name: Build, Test & Push Worker
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'worker/go.mod'
+
+      - name: Compilar worker
+        working-directory: ./worker
+        run: go build ./...
+
+      - name: Correr tests
+        working-directory: ./worker
+        run: go test ./...
+
+      - name: Autenticar en GCP (Workload Identity)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Configurar Docker para Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build imagen Docker
+        run: |
+          docker build -t ${{ env.IMAGE }}:${{ github.sha }} \
+                       -t ${{ env.IMAGE }}:latest \
+                       ./worker
+
+      - name: Push imagen a Artifact Registry
+        run: |
+          docker push ${{ env.IMAGE }}:${{ github.sha }}
+          docker push ${{ env.IMAGE }}:latest
