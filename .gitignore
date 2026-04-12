@@ -19,3 +19,12 @@
 /vote/vote.iml
 
 /browser_screenshots
+
+# Demo video project (local only — large MP4 files)
+/demo-video/
+
+# Misc local files
+plan_taller_gcp_detallado.html
+skills-lock.json
+.agents/
+.claude/
