@@ -20,9 +20,12 @@ var CACHE_KEY = 'vote:scores';
 var CACHE_TTL_SECONDS = 5;
 
 // --- Redis (Cache-Aside) ---
-var redis = new Redis({
-  host: process.env.REDIS_HOST || 'redis',
-  port: process.env.REDIS_PORT || 6379,
+// Kubernetes inyecta REDIS_PORT=tcp://... automáticamente, por eso usamos
+// REDIS_URL o construimos con REDIS_SERVICE_HOST/PORT que sí son valores limpios.
+var redisUrl = process.env.REDIS_URL ||
+  ('redis://' + (process.env.REDIS_SERVICE_HOST || 'redis') + ':' +
+   (process.env.REDIS_SERVICE_PORT || '6379'));
+var redis = new Redis(redisUrl, {
   retryStrategy: function (times) {
     var delay = Math.min(times * 500, 5000);
     console.log('[cache] Retrying Redis connection in ' + delay + 'ms...');
