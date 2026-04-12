@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 	"os/signal"
+	"time"
 
 	"database/sql"
 	"fmt"
@@ -29,7 +31,29 @@ const (
 	dbname   = "votes"
 )
 
+type WorkerStatus struct {
+	Status            string `json:"status"`
+	MessagesProcessed int    `json:"messagesProcessed"`
+	LastVote          string `json:"lastVote"`
+	LastProcessedAt   string `json:"lastProcessedAt"`
+}
+
+func writeStatus(count int, lastVote string, status string) {
+	os.MkdirAll("/health-data", 0755)
+	s := WorkerStatus{
+		Status:            status,
+		MessagesProcessed: count,
+		LastVote:          lastVote,
+		LastProcessedAt:   time.Now().Format(time.RFC3339),
+	}
+	data, _ := json.Marshal(s)
+	os.WriteFile("/health-data/status.json", data, 0644)
+}
+
 func main() {
+	os.MkdirAll("/health-data", 0755)
+	writeStatus(0, "", "starting")
+
 	db := openDatabase()
 	defer db.Close()
 
@@ -69,6 +93,7 @@ func main() {
 				if _, err := db.Exec(insertDynStmt, *messageCountStart, string(msg.Value)); err != nil {
 					log.Panic(err)
 				}
+				writeStatus(*messageCountStart, string(msg.Value), "healthy")
 			case <-signals:
 				fmt.Println("Interrupt is detected")
 				doneCh <- struct{}{}
