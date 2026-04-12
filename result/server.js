@@ -51,73 +51,69 @@ var pool = new pg.Pool({
   connectionString: 'postgres://okteto:okteto@postgresql/votes',
 });
 
-async.retry(
-  { times: 1000, interval: 1000 },
-  function (callback) {
-    pool.connect(function (err, client, done) {
-      if (err) {
-        console.error('[db] Waiting for db', err.message);
-      }
-      callback(err, client);
-    });
-  },
-  function (err, client) {
-    if (err) {
-      console.error('[db] Giving up connecting to PostgreSQL');
-      return;
-    }
-    console.log('[db] Connected to PostgreSQL');
-    getVotes(client);
-  }
-);
+// Espera Redis y PostgreSQL, luego arranca el ciclo de polling
+async function start() {
+  // Esperar Redis
+  await new Promise((resolve) => {
+    if (redis.status === 'ready') return resolve();
+    redis.once('ready', resolve);
+  });
+  console.log('[cache] Redis ready');
 
-// Cache-Aside: checa Redis primero, si no está va a PostgreSQL
-function getVotes(client) {
-  redis.get(CACHE_KEY, function (cacheErr, cachedValue) {
-    if (!cacheErr && cachedValue) {
-      // CACHE HIT: devuelve los datos cacheados sin tocar la DB
-      console.log('[cache] HIT — serving scores from Redis');
-      io.sockets.emit('scores', cachedValue);
-      scheduleNext(client);
-      return;
-    }
-
-    // CACHE MISS: consulta PostgreSQL y guarda en Redis
-    console.log('[cache] MISS — querying PostgreSQL');
-    client.query(
-      'SELECT vote, COUNT(id) AS count FROM votes GROUP BY vote',
-      [],
-      function (err, result) {
-        if (err) {
-          console.error('[db] Error performing query: ' + err);
-          scheduleNext(client);
-          return;
-        }
-
-        var votes = collectVotesFromResult(result);
-        var json = JSON.stringify(votes);
-
-        // Guardar en Redis con TTL
-        redis.setex(CACHE_KEY, CACHE_TTL_SECONDS, json, function (setErr) {
-          if (setErr) {
-            console.error('[cache] Error storing in Redis:', setErr.message);
-          } else {
-            console.log('[cache] Stored scores in Redis (TTL=' + CACHE_TTL_SECONDS + 's)');
-          }
-        });
-
-        io.sockets.emit('scores', json);
-        scheduleNext(client);
-      }
+  // Esperar PostgreSQL
+  const client = await new Promise((resolve, reject) => {
+    async.retry(
+      { times: 1000, interval: 1000 },
+      (cb) => pool.connect((err, c) => { if (err) console.error('[db] Waiting for db'); cb(err, c); }),
+      (err, c) => err ? reject(err) : resolve(c)
     );
   });
+  console.log('[db] Connected to PostgreSQL');
+  getVotes(client);
 }
 
-function scheduleNext(client) {
-  setTimeout(function () {
-    getVotes(client);
-  }, 1000);
+// Cache-Aside: checa Redis primero, si no está va a PostgreSQL
+async function getVotes(client) {
+  try {
+    const cached = await redis.get(CACHE_KEY);
+    if (cached) {
+      console.log('[cache] HIT — serving scores from Redis');
+      io.sockets.emit('scores', cached);
+      setTimeout(() => getVotes(client), 1000);
+      return;
+    }
+  } catch (e) {
+    console.error('[cache] Redis get error:', e.message);
+  }
+
+  // CACHE MISS: consulta PostgreSQL
+  console.log('[cache] MISS — querying PostgreSQL');
+  client.query(
+    'SELECT vote, COUNT(id) AS count FROM votes GROUP BY vote',
+    [],
+    async function (err, result) {
+      if (err) {
+        console.error('[db] Query error:', err);
+        setTimeout(() => getVotes(client), 1000);
+        return;
+      }
+      const votes = collectVotesFromResult(result);
+      const json = JSON.stringify(votes);
+
+      try {
+        await redis.setex(CACHE_KEY, CACHE_TTL_SECONDS, json);
+        console.log('[cache] Stored in Redis (TTL=' + CACHE_TTL_SECONDS + 's)');
+      } catch (e) {
+        console.error('[cache] Redis setex error:', e.message);
+      }
+
+      io.sockets.emit('scores', json);
+      setTimeout(() => getVotes(client), 1000);
+    }
+  );
 }
+
+start().catch(err => console.error('Startup error:', err));
 
 function collectVotesFromResult(result) {
   var votes = { a: 0, b: 0 };
