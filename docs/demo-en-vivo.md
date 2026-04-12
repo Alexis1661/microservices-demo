@@ -289,9 +289,15 @@ git push origin main
 
 > *"La nueva imagen ya está en Artifact Registry con el SHA exacto del commit que acabamos de hacer."*
 
-### Paso 6 — Resultado en producción (10 seg)
+### Paso 6 — Forzar actualización del pod y mostrar en producción (20 seg)
 
-- Abrir `http://34.132.209.134:8080`
+```bash
+kubectl rollout restart deployment/vote -n microservices-demo
+```
+
+> *"Kubernetes no reinicia automáticamente cuando el tag es `:latest`. Este comando fuerza que el pod baje la imagen nueva que acabamos de subir."*
+
+- Esperar ~30 segundos y abrir `http://34.132.209.134:8080`
 - Mostrar que ahora dice **Pizza vs Hamburguesa**
 
 > *"De un cambio en el código a estar en producción en menos de 4 minutos. Eso es una pipeline CI/CD bien configurada."*
@@ -305,6 +311,7 @@ git push origin main
 | La app no carga | Verificar IP: `kubectl get svc -n microservices-demo` |
 | CI no arrancó | Actions → CI - Vote Service → **Run workflow** (botón manual) |
 | CD no arrancó | Actions → CD - Deploy to GKE → **Run workflow** |
+| Cambio de código no aparece en la app | Pod sigue con imagen vieja: `kubectl rollout restart deployment/vote -n microservices-demo` |
 | Logs de result no muestran cache | `kubectl rollout restart deploy/result -n microservices-demo` |
 | Sidecar no responde | `kubectl rollout restart deploy/worker -n microservices-demo` |
 | GCP Console tarda en cargar | Tener la terminal como respaldo con `kubectl` |
