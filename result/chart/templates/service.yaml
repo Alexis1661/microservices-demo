@@ -5,7 +5,7 @@ metadata:
     app: result
   name: result
 spec:
-  type: ClusterIP
+  type: {{ .Values.serviceType | default "ClusterIP" }}
   ports:
   - name: result
     port: 80

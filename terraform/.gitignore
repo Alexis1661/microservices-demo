@@ -1,0 +1,21 @@
+# State files - stored in GCS backend, never in git
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Local variable overrides
+*.tfvars
+*.tfvars.json
+!example.tfvars
+
+# Terraform working directories
+.terraform/
+.terraform.lock.hcl
+
+# Plan files (can contain secrets)
+*.tfplan
+plan.log
+
+# Crash log files
+crash.log
+crash.*.log

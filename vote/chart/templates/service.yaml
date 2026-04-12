@@ -5,7 +5,7 @@ metadata:
     app: vote
   name: vote
 spec:
-  type: ClusterIP
+  type: {{ .Values.serviceType | default "ClusterIP" }}
   ports:
   - name: vote
     port: 8080

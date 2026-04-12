@@ -1,0 +1,90 @@
+name: CD - Deploy to GKE
+
+on:
+  workflow_run:
+    workflows:
+      - "CI - Vote Service"
+      - "CI - Worker Service"
+      - "CI - Result Service"
+    branches:
+      - main
+    types:
+      - completed
+  workflow_dispatch:
+
+env:
+  REGISTRY: us-central1-docker.pkg.dev
+  IMAGE_BASE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/microservices-demo
+  CLUSTER_NAME: microservices-cluster
+  CLUSTER_REGION: us-central1
+  NAMESPACE: microservices-demo
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Deploy to GKE
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Autenticar en GCP (Workload Identity)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Configurar kubectl para GKE
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          location: ${{ env.CLUSTER_REGION }}
+
+      - name: Instalar Helm
+        uses: azure/setup-helm@v4
+
+      - name: Crear namespace
+        run: kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Desplegar infraestructura (PostgreSQL + Kafka)
+        run: |
+          helm upgrade --install infrastructure infrastructure/ \
+            --namespace ${{ env.NAMESPACE }} \
+            --wait --timeout 5m
+
+      - name: Desplegar vote
+        run: |
+          helm upgrade --install vote vote/chart \
+            --namespace ${{ env.NAMESPACE }} \
+            --set image=${{ env.IMAGE_BASE }}/vote:latest \
+            --set serviceType=LoadBalancer \
+            --wait --timeout 8m
+
+      - name: Desplegar worker
+        run: |
+          helm upgrade --install worker worker/chart \
+            --namespace ${{ env.NAMESPACE }} \
+            --set image=${{ env.IMAGE_BASE }}/worker:latest \
+            --wait --timeout 8m
+
+      - name: Desplegar result
+        run: |
+          helm upgrade --install result result/chart \
+            --namespace ${{ env.NAMESPACE }} \
+            --set image=${{ env.IMAGE_BASE }}/result:latest \
+            --set serviceType=LoadBalancer \
+            --wait --timeout 8m
+
+      - name: Verificar despliegue
+        run: |
+          echo "=== Pods ==="
+          kubectl get pods -n ${{ env.NAMESPACE }}
+          echo "=== Services ==="
+          kubectl get services -n ${{ env.NAMESPACE }}
+          echo "=== Deployments ==="
+          kubectl get deployments -n ${{ env.NAMESPACE }}
