@@ -62,6 +62,7 @@ jobs:
           helm upgrade --install vote vote/chart \
             --namespace ${{ env.NAMESPACE }} \
             --set image=${{ env.IMAGE_BASE }}/vote:latest \
+            --set serviceType=LoadBalancer \
             --wait --timeout 8m
 
       - name: Desplegar worker
@@ -76,6 +77,7 @@ jobs:
           helm upgrade --install result result/chart \
             --namespace ${{ env.NAMESPACE }} \
             --set image=${{ env.IMAGE_BASE }}/result:latest \
+            --set serviceType=LoadBalancer \
             --wait --timeout 8m
 
       - name: Verificar despliegue
