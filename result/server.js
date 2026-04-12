@@ -22,7 +22,7 @@ var CACHE_TTL_SECONDS = 5;
 // --- Redis (Cache-Aside) ---
 var redis = new Redis({
   host: process.env.REDIS_HOST || 'redis',
-  port: process.env.REDIS_PORT || 6379,
+  port: parseInt(process.env.REDIS_PORT, 10) || 6379,
   retryStrategy: function (times) {
     var delay = Math.min(times * 500, 5000);
     console.log('[cache] Retrying Redis connection in ' + delay + 'ms...');
