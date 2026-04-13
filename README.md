@@ -2,6 +2,9 @@
 
 Aplicación de votación en tiempo real desplegada en **Google Kubernetes Engine (GKE Autopilot)** usando una pipeline CI/CD completa con GitHub Actions y Terraform.
 
+## Link video Demo:
+https://youtu.be/Ywfcm5IxocQ
+
 ## Arquitectura
 
 
