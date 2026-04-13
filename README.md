@@ -4,7 +4,6 @@ Aplicación de votación en tiempo real desplegada en **Google Kubernetes Engine
 
 ## Arquitectura
 
-![Architecture diagram](architecture.png)
 
 | Servicio | Tecnología | Función |
 |---|---|---|
