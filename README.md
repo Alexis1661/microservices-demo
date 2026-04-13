@@ -5,6 +5,9 @@ Aplicación de votación en tiempo real desplegada en **Google Kubernetes Engine
 ## Link video Demo:
 https://youtu.be/Ywfcm5IxocQ
 
+##Link Presentacion:
+https://gamma.app/docs/Cloud-Pipeline-Construction-qlu017r78ycb0qw
+
 ## Arquitectura
 
 
